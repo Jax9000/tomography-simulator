@@ -1,32 +1,62 @@
+import matplotlib
+matplotlib.use('TkAgg')
+
+from numpy import arange, sin, pi
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2TkAgg
+# implement the default mpl key bindings
+from matplotlib.backend_bases import key_press_handler
+
+
+from matplotlib.figure import Figure
+
 import sys
-from PyQt4.QtGui import *
-from PyQt4.QtCore import pyqtSlot
-import pyqtgraph as pg
-import numpy as np
+if sys.version_info[0] < 3:
+    import Tkinter as Tk
+else:
+    import tkinter as Tk
 
-import viewForm as form
 from skimage.io import imread
-from skimage import data_dir
 
-def something(var):
-    print "xD"
+def start():
+    root = Tk.Tk()
+    root.wm_title("Embedding in TK")
 
-@pyqtSlot()
-def selectFile():
-    print QFileDialog.getOpenFileName()
+    f = Figure(figsize=(5, 4), dpi=100)
+    a = f.add_subplot(122)
+    t = arange(0.0, 3.0, 0.01)
+    s = sin(2*pi*t)
 
-def showSampleWindow():
-    app = QApplication(sys.argv)
-    MainWindow = QMainWindow()
-    ui = form.Ui_MainWindow()
-    ui.setupUi(MainWindow)
-    ui.loadButton.clicked.connect(selectFile)
-    image = imread(data_dir + "/phantom.png", as_grey=True)
-    # print image
-    # print np.random.normal(size=100)
-    pixmap = QPixmap(image)
-    ui.label.setPixmap(pixmap)
+    image = imread("./test02.png")
+    a.imshow(image)
 
-    # ui.graphicsView.
-    MainWindow.show()
-    sys.exit(app.exec_())
+
+    # a tk.DrawingArea
+    canvas = FigureCanvasTkAgg(f, master=root)
+    canvas.show()
+    canvas.get_tk_widget().pack(side=Tk.TOP, fill=Tk.BOTH, expand=1)
+
+    def on_key_event(event):
+        print('you pressed %s' % event.key)
+        image0 = imread("./test.png")
+        a.imshow(image0)
+        canvas.draw()
+
+    canvas.mpl_connect('key_press_event', on_key_event)
+
+    def _quit():
+        root.quit()  # stops mainloop
+        root.destroy()  # this is necessary on Windows to prevent
+        # Fatal Python Error: PyEval_RestoreThread: NULL tstate
+
+    button = Tk.Button(master=root, text='Quit', command=_quit)
+    button.pack(side=Tk.BOTTOM)
+
+    w = Tk.Scale(root, from_=0, to=100, orient=Tk.HORIZONTAL)
+    w.pack(side="right");
+
+    w = Tk.Scale(root, from_=0, to=100, orient=Tk.HORIZONTAL)
+    w.pack(side="left");
+
+    Tk.mainloop()
+    # If you put root.destroy() here, it will cause an error if
+    # the window is closed with the window manager.
