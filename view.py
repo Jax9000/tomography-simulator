@@ -1,62 +1,80 @@
 import matplotlib
 matplotlib.use('TkAgg')
-
-from numpy import arange, sin, pi
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2TkAgg
-# implement the default mpl key bindings
-from matplotlib.backend_bases import key_press_handler
-
-
+from tkFileDialog import askopenfilename
 from matplotlib.figure import Figure
-
+from skimage.io import imread
 import sys
+
 if sys.version_info[0] < 3:
     import Tkinter as Tk
 else:
     import tkinter as Tk
 
-from skimage.io import imread
+class View:
+    plotNames = ['', 'Original picture', 'Sinogram', 'Reconstruction', 'Difference']
 
-def start():
-    root = Tk.Tk()
-    root.wm_title("Embedding in TK")
+    def __init__(self):
+        self.root = Tk.Tk()
+        self.root.resizable(width=False, height=False)
+        self.root.wm_title("Embedding in TK")
 
-    f = Figure(figsize=(5, 4), dpi=100)
-    a = f.add_subplot(122)
-    t = arange(0.0, 3.0, 0.01)
-    s = sin(2*pi*t)
+        menubar = Tk.Menu(self.root)
+        filemenu = Tk.Menu(menubar, tearoff=0)
+        filemenu.add_command(label="Load", command=self.__loadFile)
+        filemenu.add_command(label="Exit", command=self.root.quit)
+        menubar.add_cascade(label="File", menu=filemenu)
+        self.root.config(menu=menubar)
 
-    image = imread("./test02.png")
-    a.imshow(image)
+        self.f = Figure(figsize=(10, 5), dpi=100)
+        for i in range(1, 5):
+            self.subPlot = self.f.add_subplot(220 + i)
+            self.subPlot.set_title(self.plotNames[i])
+            print self.plotNames[i]
 
+        self.canvas = FigureCanvasTkAgg(self.f, master=self.root)
+        self.canvas.show()
+        self.canvas.get_tk_widget().grid(columnspan=3)
 
-    # a tk.DrawingArea
-    canvas = FigureCanvasTkAgg(f, master=root)
-    canvas.show()
-    canvas.get_tk_widget().pack(side=Tk.TOP, fill=Tk.BOTH, expand=1)
+        # canvas.mpl_connect('key_press_event', _on_key_event)
 
-    def on_key_event(event):
-        print('you pressed %s' % event.key)
-        image0 = imread("./test.png")
-        a.imshow(image0)
-        canvas.draw()
+        self.detectors = Tk.Scale(self.root, from_=1, to=100, label='Detectors', orient=Tk.HORIZONTAL, command=self.__detectorEvent)
+        self.detectors.grid(row=1, column=0)
 
-    canvas.mpl_connect('key_press_event', on_key_event)
+        self.angle = Tk.Scale(self.root, from_=1, to=180, label='Angle', orient=Tk.HORIZONTAL, command=self.__angleEvent)
+        self.angle.grid(row=1, column=1)
 
-    def _quit():
-        root.quit()  # stops mainloop
-        root.destroy()  # this is necessary on Windows to prevent
-        # Fatal Python Error: PyEval_RestoreThread: NULL tstate
+        self.scans = Tk.Scale(self.root, from_=1, to=1000, label='Scans', orient=Tk.HORIZONTAL, command=self.__scansEvent)
+        self.scans.grid(row=1, column=2)
 
-    button = Tk.Button(master=root, text='Quit', command=_quit)
-    button.pack(side=Tk.BOTTOM)
+        b = Tk.Button(self.root, text="Start", command=self.__startEvent)
+        b.grid(column=1)
 
-    w = Tk.Scale(root, from_=0, to=100, orient=Tk.HORIZONTAL)
-    w.pack(side="right");
+    def start(self):
+        Tk.mainloop()
 
-    w = Tk.Scale(root, from_=0, to=100, orient=Tk.HORIZONTAL)
-    w.pack(side="left");
+    def setSubPlot(self, array, number):
+        if(number < 1 or number > 5):
+            raise ValueError('Plot number must be between 1 and 5')
+            return
+        number += 220 # requried for add_subplot function which has 2x2 subplots
+        self.subPlot = self.f.add_subplot(number)
+        self.subPlot.imshow(array)
+        self.canvas.draw()
 
-    Tk.mainloop()
-    # If you put root.destroy() here, it will cause an error if
-    # the window is closed with the window manager.
+    def __detectorEvent(self, value):
+        return
+
+    def __angleEvent(self, value):
+        return
+
+    def __scansEvent(self, value):
+        return
+
+    def __startEvent(self):
+        print 'button pushed!'
+
+    def __loadFile(self):
+        Tk.Tk().withdraw()  # we don't want a full GUI, so keep the root window from appearing
+        filename = askopenfilename()  # show an "Open" dialog box and return the path to the selected file
+        return filename
