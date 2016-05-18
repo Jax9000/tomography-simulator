@@ -30,6 +30,7 @@ class View:
         for i in range(1, 5):
             self.subPlot = self.f.add_subplot(220 + i)
             self.subPlot.set_title(self.plotNames[i])
+            self.subPlot.axis('off')
             print self.plotNames[i]
 
         self.canvas = FigureCanvasTkAgg(self.f, master=self.root)
@@ -61,6 +62,15 @@ class View:
         self.subPlot = self.f.add_subplot(number)
         self.subPlot.imshow(array)
         self.canvas.draw()
+
+    def getDetectors(self):
+        return self.detectors.get()
+
+    def getAngle(self):
+        return self.angle.get()
+
+    def getScans(self):
+        return self.scans.get()
 
     def __detectorEvent(self, value):
         return
