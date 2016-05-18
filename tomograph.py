@@ -26,8 +26,6 @@ class ParallelComputedTomography:
             result.append(self.__scan_step(rotated_img))
         return np.array(result)
 
-
-
     def __calculate_ray_value(self, column, img):
         value = 0
         for i in range(0, self.detectors):
