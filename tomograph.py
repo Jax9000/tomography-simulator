@@ -34,13 +34,13 @@ class ParallelComputedTomography:
         img = imresize(img, (self._detectors, self._detectors))
 
         theta = np.linspace(0., float(self._alpha), self._scans, endpoint=False)
-        print theta
+        # print theta
         self._sinogram = radon(img, theta=theta, circle=True)
         return self._sinogram
 
     def restore_img_fbp(self, filter=Filter.ramp):
         theta = np.linspace(0., float(self._alpha), self._scans, endpoint=False)
-        self._restored_image = iradon(self._sinogram, theta=theta, circle=True, filter=filter.value)
+        self._restored_image = iradon(self._sinogram, theta=theta, circle=True, filter=filter)
         return self._restored_image
 
     def create_sinogram(self, img, detectors=0, alpha=0, scans=0):
@@ -75,10 +75,9 @@ class ParallelComputedTomography:
 
     def getDifference(self):
         img = self._original_image
-        ParallelComputedTomography.show(img, "original")
+        # ParallelComputedTomography.show(img, "original")
         rimg = imresize(self._restored_image, img.shape);
-        ParallelComputedTomography.show(rimg, "restored")
-
+        # ParallelComputedTomography.show(rimg, "restored")
         return img - rimg
 
     def __calculate_ray_value(self, column, img):
@@ -112,20 +111,20 @@ class ParallelComputedTomography:
         plt.show()
 
 
-pct = ParallelComputedTomography(200, 180, 180)
-sinogram = pct.sinogram_radon(imread("test_data/phantom.png", as_grey=True), 200, 180, 100)
-# imshow(sinogram, cmap=plt.cm.Greys_r)
+# pct = ParallelComputedTomography(200, 180, 180)
+# sinogram = pct.sinogram_radon(imread("test_data/phantom.png", as_grey=True), 200, 180, 100)
+# # imshow(sinogram, cmap=plt.cm.Greys_r)
+# # plt.show()
+#
+# restored = pct.restore_img_fbp(Filter.none)
+# imshow(restored, cmap=plt.cm.Greys_r)
 # plt.show()
-
-restored = pct.restore_img_fbp(Filter.none)
-imshow(restored, cmap=plt.cm.Greys_r)
-plt.show()
-
-diff = pct.getDifference()
-imshow(diff, cmap=plt.cm.Greys_r)
-plt.show()
-
-
+#
+# diff = pct.getDifference()
+# imshow(diff, cmap=plt.cm.Greys_r)
+# plt.show()
+#
+#
 
 
 
