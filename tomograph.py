@@ -5,7 +5,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from matplotlib.pyplot import imshow
-from skimage.transform import iradon, radon
+from skimage.transform import iradon, radon, rescale
 from skimage.io import  imread
 from enum import Enum
 
@@ -41,10 +41,10 @@ class ParallelComputedTomography:
 
     def get_difference(self):
         img = self._original_image
-        # ParallelComputedTomography.show(img, "original")
-        rimg = imresize(self._restored_image, img.shape);
-        # ParallelComputedTomography.show(rimg, "restored")
-        return img - rimg
+        scale = 1.0 * len(self._restored_image) / len(img)
+        rimg = rescale(img, scale=scale)
+
+        return rimg - self._restored_image
 
     @staticmethod
     def show(img, title="Title"):
@@ -58,7 +58,8 @@ class ParallelComputedTomography:
         self.__setup(img, detectors, alpha, scans)
 
         self._original_image = img
-        img = imresize(img, (self._detectors, self._detectors))
+        scale = 1.0*self._detectors/len(img)
+        img = rescale(img, scale=scale)
 
         theta = np.linspace(0., float(self._alpha), self._scans, endpoint=False)
         # print theta
@@ -76,7 +77,9 @@ class ParallelComputedTomography:
         self.__setup(img, detectors, alpha, scans)
 
         self._original_image = img
-        img = imresize(img, (self._detectors, self._detectors))
+        scale = 1.0*self._detectors/len(img)
+        img = rescale(img, scale=scale)
+
 
         result = []
         for angle in np.linspace(0, self._alpha, self._scans):
@@ -120,9 +123,10 @@ class ParallelComputedTomography:
 
 # region Testy
 pct = ParallelComputedTomography(100, 180, 90)
-sinogram = pct.sinogram_radon(imread("test_data/phantom.png", as_grey=True))
+originalImage = imread("test_data/phantom.png", as_grey=True)
+sinogramRadon = pct.sinogram_radon(originalImage)
 plt.subplot(211)
-pct.show(sinogram, "Lib method")
+pct.show(sinogramRadon, "Lib method")
 
 sinogram = pct.our_create_sinogram(imread("test_data/phantom.png", as_grey=True))
 plt.figure(1)
@@ -136,14 +140,18 @@ plt.figure(4)
 plt.subplot(221)
 pct.show(restored, "Lib restored none filter")
 
-restored = pct.restore_img_fbp(Filter.hamming)
+restoredHamming = pct.restore_img_fbp(Filter.hamming)
 plt.figure(4)
 plt.subplot(222)
-pct.show(restored, "Lib restored hamming")
+pct.show(restoredHamming, "Lib restored hamming")
 
 restored = pct.our_restore_img_bp();
 plt.subplot(223)
 pct.show(restored, "My restored none filter")
+
+plt.subplot(224)
+imkwargs = dict(vmin=-0.2, vmax=0.2)
+plt.imshow(pct.get_difference(), cmap=plt.cm.Greys_r, **imkwargs)
 
 #
 # diff = pct.get_difference()
@@ -153,11 +161,3 @@ plt.show()
 
 
 # endregion
-
-
-
-
-
-
-
-
