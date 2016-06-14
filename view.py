@@ -119,7 +119,7 @@ class View:
                 reconstructed_img = self.ct.restore_img_fbp(self.variable.get())
             else:
                 reconstructed_img = self.ct.restore_img_fbp(Filter.none)
-            diff = self.ct.getDifference()
+            diff = self.ct.get_difference()
             self.setSubPlot(sinogram, 2)
             self.setSubPlot(reconstructed_img, 3)
             self.setSubPlot(diff, 4)

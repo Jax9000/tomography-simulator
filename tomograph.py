@@ -9,6 +9,7 @@ from skimage.transform import iradon, radon
 from skimage.io import  imread
 from enum import Enum
 
+
 class Filter(Enum):
     none = None
     ramp = "ramp"
@@ -19,6 +20,8 @@ class Filter(Enum):
 
 
 class ParallelComputedTomography:
+
+    # region Constructor and helpers
     def __init__(self, detectors, alpha, scans):
         self._detectors = detectors
         self._alpha = alpha
@@ -27,6 +30,30 @@ class ParallelComputedTomography:
         self._original_image = np.array([])
         self._restored_image = np.array([])
 
+    def __setup(self, img, detectors, alpha, scans):
+        self._original_image = img
+        if detectors != 0:
+            self._detectors = detectors
+        if alpha != 0:
+            self._alpha = alpha
+        if scans != 0:
+            self._scans = scans
+
+    def get_difference(self):
+        img = self._original_image
+        # ParallelComputedTomography.show(img, "original")
+        rimg = imresize(self._restored_image, img.shape);
+        # ParallelComputedTomography.show(rimg, "restored")
+        return img - rimg
+
+    @staticmethod
+    def show(img, title="Title"):
+        imshow(img, cmap=plt.cm.Greys_r)
+        plt.title(title)
+        # plt.show()
+    # endregion
+
+    # region Use external libraries.
     def sinogram_radon(self, img, detectors=0, alpha=0, scans=0):
         self.__setup(img, detectors, alpha, scans)
 
@@ -42,9 +69,11 @@ class ParallelComputedTomography:
         theta = np.linspace(0., float(self._alpha), self._scans, endpoint=False)
         self._restored_image = iradon(self._sinogram, theta=theta, circle=True, filter=filter)
         return self._restored_image
+    # endregion
 
-    def create_sinogram(self, img, detectors=0, alpha=0, scans=0):
-        self.__setup(detectors, alpha, scans)
+    # region Our own implementation
+    def our_create_sinogram(self, img, detectors=0, alpha=0, scans=0):
+        self.__setup(img, detectors, alpha, scans)
 
         self._original_image = img
         img = imresize(img, (self._detectors, self._detectors))
@@ -54,16 +83,16 @@ class ParallelComputedTomography:
             rotated_img = rotate(img, angle, reshape=False)
             result.append(self.__scan_step(rotated_img))
 
-        self._sinogram = rotate(np.array(result), 90, reshape=False)
+        # self._sinogram = rotate(np.array(result), 90, reshape=False)
         return self._sinogram
 
-    def restore_img_bp(self):
+    def our_restore_img_bp(self):
         det = self._detectors
         img = np.zeros(det*det).reshape((det, det))
         angle = float(self._alpha)/self._scans
 
         for i in range(0, self._scans):
-            row = self._sinogram[i,:]
+            row = (self._sinogram[:,i] * np.hamming(det))
 
             img += row
             img = rotate(img, angle, reshape=False)
@@ -72,13 +101,6 @@ class ParallelComputedTomography:
         img /= self._scans
 
         return img
-
-    def getDifference(self):
-        img = self._original_image
-        # ParallelComputedTomography.show(img, "original")
-        rimg = imresize(self._restored_image, img.shape);
-        # ParallelComputedTomography.show(rimg, "restored")
-        return img - rimg
 
     def __calculate_ray_value(self, column, img):
         value = 0
@@ -94,37 +116,44 @@ class ParallelComputedTomography:
         for i in range(0, self._detectors):
             vector.append(self.__calculate_ray_value(i, img))
         return vector
+    # endregion
 
-    def __setup(self, img, detectors, alpha, scans):
-        self._original_image = img
-        if detectors != 0:
-            self._detectors = detectors
-        if alpha != 0:
-            self._alpha = alpha
-        if scans != 0:
-            self._scans = scans
+# region Testy
+pct = ParallelComputedTomography(100, 180, 90)
+sinogram = pct.sinogram_radon(imread("test_data/phantom.png", as_grey=True))
+plt.subplot(211)
+pct.show(sinogram, "Lib method")
 
-    @staticmethod
-    def show(img, title="Title"):
-        imshow(img, cmap=plt.cm.Greys_r)
-        plt.title(title)
-        plt.show()
+sinogram = pct.our_create_sinogram(imread("test_data/phantom.png", as_grey=True))
+plt.figure(1)
+plt.subplot(212)
+pct.show(sinogram, "My method")
 
 
-# pct = ParallelComputedTomography(200, 180, 180)
-# sinogram = pct.sinogram_radon(imread("test_data/phantom.png", as_grey=True), 200, 180, 100)
-# # imshow(sinogram, cmap=plt.cm.Greys_r)
-# # plt.show()
+
+restored = pct.restore_img_fbp(Filter.none)
+plt.figure(4)
+plt.subplot(221)
+pct.show(restored, "Lib restored none filter")
+
+restored = pct.restore_img_fbp(Filter.hamming)
+plt.figure(4)
+plt.subplot(222)
+pct.show(restored, "Lib restored hamming")
+
+restored = pct.our_restore_img_bp();
+plt.subplot(223)
+pct.show(restored, "My restored none filter")
+
 #
-# restored = pct.restore_img_fbp(Filter.none)
-# imshow(restored, cmap=plt.cm.Greys_r)
-# plt.show()
-#
-# diff = pct.getDifference()
-# imshow(diff, cmap=plt.cm.Greys_r)
-# plt.show()
-#
-#
+# diff = pct.get_difference()
+# plt.figure(5)
+# pct.show(diff, "Diff")
+plt.show()
+
+
+# endregion
+
 
 
 
