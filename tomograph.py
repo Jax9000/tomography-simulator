@@ -1,5 +1,5 @@
-from scipy.misc import imresize
 from scipy.ndimage import rotate
+from scipy.fftpack import fftshift, fft, ifft
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -46,14 +46,22 @@ class ParallelComputedTomography:
 
         return rimg - self._restored_image
 
-    def __filter(self, function):
-        m, n = self._sinogram.shape
-        theta = np.linspace(0, self._alpha, self._scans, endpoint=False)
+    def filter(self):
+        x, y = self._sinogram.shape
+        sinogram = self._sinogram.copy()
+        n = 2048.0
+        sinogram.resize((n, y))
+        f = fftshift(abs(np.mgrid[-1:1:2 / n])).reshape(-1, 1)
+        projection = fft(sinogram, axis=0) * np.tile(f, (1, y))
+        self._sinogram = np.real(ifft(projection, axis=0))[:x]
+        self._sinogram /= np.amax(self._sinogram)
+        return self._sinogram
 
     @staticmethod
-    def show(img, title="Title"):
+    def show(img, title="Plot"):
         imshow(img, cmap=plt.cm.Greys_r)
         plt.title(title)
+        plt.axis('off')
         # plt.show()
     # endregion
 
@@ -107,6 +115,7 @@ class ParallelComputedTomography:
 
         img = rotate(img, 180)
         img /= self._scans
+        img /= np.amax(img)
         self._restored_image = img
         return img
 
@@ -124,37 +133,41 @@ class ParallelComputedTomography:
             vector.append(self.__calculate_ray_value(i, img))
         return vector
 
+
 # region Testy
-pct = ParallelComputedTomography(70, 180, 90)
-originalImage = imread("test_data/test02.png", as_grey=True)
-pct.our_create_sinogram(originalImage)
-
-restored = pct.restore_img_fbp(Filter.none)
-plt.figure(4)
-plt.subplot(221)
-pct.show(restored, "Lib restored none filter")
-
-restored = pct.restore_img_fbp(Filter.hamming)
-plt.figure(4)
-plt.subplot(222)
-pct.show(restored, "Lib restored hamming")
-
-restored = pct.our_restore_img_bp();
-
-
-restoredMax = np.amax(restored)
-restored = restored / restoredMax
-restored /=2
-plt.subplot(223)
-pct.show(restored, "My restored none filter")
-
-plt.subplot(224)
-imkwargs = dict(vmin=0.3, vmax=1)
-plt.figure(6)
-originalImage = rescale(originalImage, scale=0.35)
-plt.imshow(abs(originalImage -restored), cmap=plt.cm.Greys_r, **imkwargs)
-
-plt.show()
+# originalImage = imread("test_data/phantom.png", as_grey=True)
+#
+# pct = ParallelComputedTomography(100, 179, 90)
+#
+# sinogram = pct.our_create_sinogram(originalImage)
+# print np.amax(sinogram)
+# plt.subplot(121)
+# pct.show(sinogram, "Raw sinogram")
+#
+#
+# sinogram = pct.filter()
+# print np.amax(sinogram)
+# plt.subplot(122)
+# pct.show(sinogram, "Filtered sinogram")
+# restored = pct.our_restore_img_bp();
+#
+# plt.figure(2)
+# plt.subplot(121)
+# pct.show(restored, "Restored")
+#
+#
+#
+# imkwargs = dict(vmin=0, vmax=1)
+# restored = rescale(restored, scale=len(originalImage)/100.0)
+# plt.subplot(122)
+# dif = abs(originalImage - restored)
+# dif /= np.amax(dif)
+# plt.imshow(dif , cmap=plt.cm.Greys_r, **imkwargs)
+# plt.title("Diff")
+# plt.axis('off')
+# plt.show()
+#
+# print (1 - (np.sum(dif) / dif.size)) * 100
 
 
 # endregion
