@@ -112,8 +112,8 @@ class ParallelComputedTomography:
             img += row
             img = rotate(img, -angle, reshape=False)
 
-
-        img = rotate(img, 180)
+        img = rotate(img, self._alpha, reshape=False)
+        # img = rotate(img, 180)
         img /= self._scans
         img /= np.amax(img)
         self._restored_image = img

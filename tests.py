@@ -1,9 +1,6 @@
 from tomograph import ParallelComputedTomography as PCT
 from skimage.measure import compare_ssim as ssim
-from skimage.measure import compare_nrmse as mse
 import numpy as np
-import matplotlib.pyplot as plt
-from matplotlib.pyplot import imshow
 from skimage.transform import rescale
 from skimage.io import imread
 import time

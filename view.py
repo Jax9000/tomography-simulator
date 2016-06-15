@@ -6,9 +6,11 @@ from matplotlib.figure import Figure
 from skimage.io import imread
 import matplotlib.pyplot as plt
 import sys
+import tkMessageBox
+from skimage.measure import compare_ssim as ssim
+from skimage.transform import rescale
 
 from tomograph import ParallelComputedTomography
-from tomograph import Filter
 
 if sys.version_info[0] < 3:
     import Tkinter as Tk
@@ -24,7 +26,8 @@ class View:
 
         self.root = Tk.Tk()
         self.root.resizable(width=False, height=False)
-        self.root.wm_title("Embedding in TK")
+        self.root.wm_title("Computed Tomography Simulator")
+        self.root.protocol('WM_DELETE_WINDOW', self.root.quit())
 
         menubar = Tk.Menu(self.root)
         filemenu = Tk.Menu(menubar, tearoff=0)
@@ -38,15 +41,12 @@ class View:
             self.subPlot = self.f.add_subplot(220 + i)
             self.subPlot.set_title(self.plotNames[i])
             self.subPlot.axis('off')
-            print self.plotNames[i]
 
         self.canvas = FigureCanvasTkAgg(self.f, master=self.root)
         self.canvas.show()
         self.canvas.get_tk_widget().grid(columnspan=4)
 
-        # canvas.mpl_connect('key_press_event', _on_key_event)
-
-        self.detectors = Tk.Scale(self.root, from_=1, to=500, label='Detectors', orient=Tk.HORIZONTAL, command=self.__detectorEvent)
+        self.detectors = Tk.Scale(self.root, from_=1, to=300, label='Detectors', orient=Tk.HORIZONTAL, command=self.__detectorEvent)
         self.detectors.set(200)
         self.detectors.grid(row=1, column=0)
 
@@ -61,9 +61,8 @@ class View:
         b = Tk.Button(self.root, text="Start", command=self.__startEvent)
         b.grid(row=2, column=1)
 
-        self.variable = Tk.StringVar(self.root)
-        self.variable.set(Filter.hamming)
-        w = Tk.OptionMenu(self.root, self.variable, Filter.cosine, Filter.hamming, Filter.hann,  Filter.ramp, Filter.shepp_logan, "None")
+        self.filterBox = Tk.IntVar()
+        w = Tk.Checkbutton(self.root, text="Filter", variable=self.filterBox)
         w.grid(row=1, column=3)
 
     def start(self):
@@ -80,6 +79,22 @@ class View:
         else:
             self.subPlot.imshow(array, cmap=plt.cm.Greys_r, aspect='auto')
         self.canvas.draw()
+
+    def button_pressed(self, e):
+        if(self.getImage() is not None):
+            sinogram = self.ct.sinogram_radon(self.getImage(), self.getDetectors(), self.getAngle(), self.getScans())
+            if(self.filterBox.get() == 1):
+                sinogram = self.ct.filter()
+            reconstructed_img = self.ct.our_restore_img_bp()
+            restored = reconstructed_img
+            restored = rescale(restored, scale=len(self.getImage()) / float(self.getDetectors()))
+            diffValue = round(ssim(self.getImage(), restored), 3)
+            l = Tk.Label(self.root, text='SSIM: ' + str(diffValue*100)+"%")
+            l.grid(row=2, column=2)
+            diff = self.ct.get_difference()
+            self.setSubPlot(sinogram, 2)
+            self.setSubPlot(reconstructed_img, 3)
+            self.setSubPlot(diff, 4)
 
     def getDetectors(self):
         return self.detectors.get()
@@ -108,18 +123,13 @@ class View:
     def __loadFile(self):
         Tk.Tk().withdraw()  # we don't want a full GUI, so keep the root window from appearing
         filename = askopenfilename()  # show an "Open" dialog box and return the path to the selected file
-        self.image = imread(filename, as_grey=True)
-        self.setSubPlot(self.image, 1)
-
-    def button_pressed(self, e):
-        if(self.getImage() != None):
-            sinogram = self.ct.sinogram_radon(self.getImage(), self.getDetectors(), self.getAngle(), self.getScans())
-            print sinogram
-            if(self.variable.get() != "None"):
-                reconstructed_img = self.ct.restore_img_fbp(self.variable.get())
+        try:
+            image = imread(filename, as_grey=True)
+            x, y = image.shape
+            if(x != y):
+                tkMessageBox.showwarning("Open file", "Image must be in square shape")
             else:
-                reconstructed_img = self.ct.restore_img_fbp(Filter.none)
-            diff = self.ct.get_difference()
-            self.setSubPlot(sinogram, 2)
-            self.setSubPlot(reconstructed_img, 3)
-            self.setSubPlot(diff, 4)
+                self.image = image
+                self.setSubPlot(self.image, 1)
+        except IOError:
+            self.image = None
