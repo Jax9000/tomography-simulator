@@ -46,6 +46,10 @@ class ParallelComputedTomography:
 
         return rimg - self._restored_image
 
+    def __filter(self, function):
+        m, n = self._sinogram.shape
+        theta = np.linspace(0, self._alpha, self._scans, endpoint=False)
+
     @staticmethod
     def show(img, title="Title"):
         imshow(img, cmap=plt.cm.Greys_r)
@@ -72,7 +76,6 @@ class ParallelComputedTomography:
         return self._restored_image
     # endregion
 
-    # region Our own implementation
     def our_create_sinogram(self, img, detectors=0, alpha=0, scans=0):
         self.__setup(img, detectors, alpha, scans)
 
@@ -82,11 +85,13 @@ class ParallelComputedTomography:
 
 
         result = []
-        for angle in np.linspace(0, self._alpha, self._scans):
+        for angle in np.linspace(0, self._alpha , self._scans):
             rotated_img = rotate(img, angle, reshape=False)
             result.append(self.__scan_step(rotated_img))
 
-        # self._sinogram = rotate(np.array(result), 90, reshape=False)
+        result = result[::-1]
+        self._sinogram = np.array(result).transpose()
+        self._sinogram = self._sinogram[::-1]
         return self._sinogram
 
     def our_restore_img_bp(self):
@@ -95,68 +100,60 @@ class ParallelComputedTomography:
         angle = float(self._alpha)/self._scans
 
         for i in range(0, self._scans):
-            row = (self._sinogram[:,i] * np.hamming(det))
-
+            row = (self._sinogram[:,i])
             img += row
-            img = rotate(img, angle, reshape=False)
+            img = rotate(img, -angle, reshape=False)
 
-        img -= np.sum(self._original_image)
+
+        img = rotate(img, 180)
         img /= self._scans
-
+        self._restored_image = img
         return img
 
     def __calculate_ray_value(self, column, img):
         value = 0
         for i in range(0, self._detectors):
-            value += img[i, int(round(column))]
+            value += img[i, column]
         # probably not necessary division
-        value /= self._detectors
+        # value /= self._detectors
         return value
 
-    # parallel rays
     def __scan_step(self, img):
         vector = []
         for i in range(0, self._detectors):
             vector.append(self.__calculate_ray_value(i, img))
         return vector
-    # endregion
 
 # region Testy
-pct = ParallelComputedTomography(100, 180, 90)
-originalImage = imread("test_data/phantom.png", as_grey=True)
-sinogramRadon = pct.sinogram_radon(originalImage)
-plt.subplot(211)
-pct.show(sinogramRadon, "Lib method")
-
-sinogram = pct.our_create_sinogram(imread("test_data/phantom.png", as_grey=True))
-plt.figure(1)
-plt.subplot(212)
-pct.show(sinogram, "My method")
-
-
+pct = ParallelComputedTomography(70, 180, 90)
+originalImage = imread("test_data/test02.png", as_grey=True)
+pct.our_create_sinogram(originalImage)
 
 restored = pct.restore_img_fbp(Filter.none)
 plt.figure(4)
 plt.subplot(221)
 pct.show(restored, "Lib restored none filter")
 
-restoredHamming = pct.restore_img_fbp(Filter.hamming)
+restored = pct.restore_img_fbp(Filter.hamming)
 plt.figure(4)
 plt.subplot(222)
-pct.show(restoredHamming, "Lib restored hamming")
+pct.show(restored, "Lib restored hamming")
 
 restored = pct.our_restore_img_bp();
+
+
+restoredMax = np.amax(restored)
+restored = restored / restoredMax
+restored /=2
 plt.subplot(223)
 pct.show(restored, "My restored none filter")
 
 plt.subplot(224)
-imkwargs = dict(vmin=-0.2, vmax=0.2)
-plt.imshow(pct.get_difference(), cmap=plt.cm.Greys_r, **imkwargs)
+imkwargs = dict(vmin=0.3, vmax=1)
+plt.figure(6)
+originalImage = rescale(originalImage, scale=0.35)
+plt.imshow(abs(originalImage -restored), cmap=plt.cm.Greys_r, **imkwargs)
 
-#
-# diff = pct.get_difference()
-# plt.figure(5)
-# pct.show(diff, "Diff")
 plt.show()
 
 
